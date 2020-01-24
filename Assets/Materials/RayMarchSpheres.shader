@@ -1,4 +1,6 @@
-﻿Shader "Hidden/RayMarchSpheres"
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "Hidden/RayMarchSpheres"
 {
 
 	Properties
@@ -23,53 +25,51 @@
 				float4 vertex : POSITION;
 				float2 uv : TEXCOORD0;
 			};
-			sampler2D _CameraDepthTexture;
-			float4x4 _ClipToWorld;
-			sampler2D _MainTex;
-			float _NearPlane;
+	// Provided by our script
+	uniform float4x4 _FrustumCornersES;
+	uniform sampler2D _MainTex;
+	uniform float4 _MainTex_TexelSize;
+	uniform float4x4 _CameraInvViewMatrix;
 
-			struct v2f
-			{
-				float2 uv : TEXCOORD0;
-				float3 worldDirection : TEXCOORD1;
-				float4 screenPosition : TEXCOORD2;
-				float4 vertex : SV_POSITION;
-			};
 
-			v2f vert(appdata v)
-			{
-				v2f o;
+	// Output of vertex shader / input to fragment shader
+	struct v2f
+	{
+		float4 pos : SV_POSITION;
+		float2 uv : TEXCOORD0;
+		float3 ray : TEXCOORD1;
+	};
 
-				// No need for a matrix multiply here when a FMADD will do.
-				o.vertex = v.vertex * float4(2, 2, 1, 1) - float4(1, 1, 0, 0);
+	v2f vert(appdata v)
+	{
+		v2f o;
 
-				// Construct a vector on the Z = 0 plane corresponding to our screenspace location.
-				float4 clip = float4((v.uv.xy * 2.0f - 1.0f) * float2(1, -1), 0.0f, 1.0f);
-				// Use matrix computed in script to convert to worldspace.
-				o.worldDirection = mul(_ClipToWorld, clip) - _WorldSpaceCameraPos;
-				o.screenPosition = o.vertex;
+		// Index passed via custom blit function in RaymarchGeneric.cs
+		half index = v.vertex.z;
+		v.vertex.z = 0.1;
 
-				// UV passthrough.
-				// Flipped Y may be a platform-specific difference - check OpenGL version.
-				o.uv = v.uv;
-				//o.uv.y = 1.0f - o.uv.y;
+		o.pos = UnityObjectToClipPos(v.vertex);
+		o.uv = v.uv.xy;
 
-				return o;
-			}
+#if UNITY_UV_STARTS_AT_TOP
+		if (_MainTex_TexelSize.y < 0)
+			o.uv.y = 1 - o.uv.y;
+#endif
 
-			fixed4 frag(v2f i) : SV_Target
-			{ 
-				fixed4 col = tex2D(_MainTex, i.uv);
-				// Read depth, linearizing into worldspace units.
-				//float depth = LinearEyeDepth(UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, i.uv)));
-				float depth = 1.0f;
+		// Get the eyespace view ray (normalized)
+		o.ray = _FrustumCornersES[(int)index].xyz;
 
-				// Multiply by worldspace direction (no perspective divide needed).
-				float3 worldspace = i.worldDirection * depth + _WorldSpaceCameraPos;
+		// Transform the ray from eyespace to worldspace
+		// Note: _CameraInvViewMatrix was provided by the script
+		o.ray = mul(_CameraInvViewMatrix, o.ray);
+		return o;
+	}
 
-				// Draw a worldspace tartan pattern over the scene to demonstrate.  
-				return col*float4(frac((worldspace)) + float3(0, 0, 0.1), 1.0f);
-			}
+	fixed4 frag(v2f i) : SV_Target
+	{
+		fixed4 col = fixed4(i.ray, 1);
+		return col;
+	}
 			
 			ENDCG
 		}
