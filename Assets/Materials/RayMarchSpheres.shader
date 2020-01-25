@@ -30,6 +30,10 @@ Shader "Hidden/RayMarchSpheres"
 	uniform sampler2D _MainTex;
 	uniform float4 _MainTex_TexelSize;
 	uniform float4x4 _CameraInvViewMatrix;
+	uniform float3 _SpherePos;
+	uniform float _SphereRadius;
+	uniform float _GridSpacing;
+	uniform int _NSteps;
 
 
 	// Output of vertex shader / input to fragment shader
@@ -67,8 +71,45 @@ Shader "Hidden/RayMarchSpheres"
 
 	fixed4 frag(v2f i) : SV_Target
 	{
-		fixed4 col = fixed4(i.ray, 1);
-		return col;
+		float3 rc = _CameraInvViewMatrix._14_24_34;
+		float3 rayDir = i.ray / length(i.ray);
+
+		//fixed4 col;
+		//col.xyz = rayDir * 0.5 + 1;
+		//col.w = 1;
+		//return col;
+
+		int iStep;
+		for (iStep = 1;iStep <= _NSteps;++iStep)
+		{
+			float3 CS = frac(rc - _SpherePos);
+			float b_2 = dot(rayDir, CS);
+			float c = dot(CS, CS) - _SphereRadius * _SphereRadius;
+			float bsqr_4 = b_2 * b_2;
+			float sSqr = bsqr_4 - c;
+
+			if (sSqr > 0)
+			{
+				float s = sqrt(sSqr);
+				float d = -s - b_2;
+				if (d < 0)
+				{
+					d = s - b_2;
+					if (d < 0)
+					{
+						return fixed4(1, 1, 0, 1);
+					}
+				}
+				return fixed4(d / _GridSpacing, (float)iStep/_NSteps, 1, 1);
+			}
+			else if ( sSqr == 0 )
+			{
+				/*float d = -dot(rayDir, rc - _SpherePos);*/
+				return fixed4(1, 0, 0, 1);
+			}
+			rc += rayDir * _GridSpacing;
+		}
+		return fixed4(0, 0, 0, 1);
 	}
 			
 			ENDCG

@@ -17,6 +17,14 @@ public class DrawSpheres : SceneViewFilter
     private float _RaymarchDrawDistance = 40;
     [SerializeField]
     private bool _DebugPerformance = false;
+    [SerializeField]
+    private Vector3 _SpherePos = new Vector3(1, 0, 0);
+    [SerializeField]
+    private float _SphereRadius = 0.1f;
+    [SerializeField]
+    private float _GridSpacing = 2.0f;
+    [SerializeField]
+    private int _NSteps = 10;
 
     public Material EffectMaterial
     {
@@ -87,20 +95,13 @@ public class DrawSpheres : SceneViewFilter
         // Set any custom shader variables here.  For example, you could do:
         // EffectMaterial.SetFloat("_MyVariable", 13.37f);
         // This would set the shader uniform _MyVariable to value 13.37
+        EffectMaterial.SetVector("_SpherePos", _SpherePos);
+        EffectMaterial.SetFloat("_SphereRadius", _SphereRadius);
+        EffectMaterial.SetFloat("_GridSpacing", _GridSpacing);
+        EffectMaterial.SetInt("_NSteps", _NSteps);
+
 
         EffectMaterial.SetVector("_LightDir", SunLight ? SunLight.forward : Vector3.down);
-
-        // Construct a Model Matrix for the Torus
-        Matrix4x4 MatTorus = Matrix4x4.TRS(
-            Vector3.right * Mathf.Sin(Time.time) * 5,
-            Quaternion.identity,
-            Vector3.one);
-        MatTorus *= Matrix4x4.TRS(
-            Vector3.zero,
-            Quaternion.Euler(new Vector3(0, 0, (Time.time * 200) % 360)),
-            Vector3.one);
-        // Send the torus matrix to our shader
-        EffectMaterial.SetMatrix("_MatTorus_InvModel", MatTorus.inverse);
 
         EffectMaterial.SetTexture("_ColorRamp_Material", _MaterialColorRamp);
         EffectMaterial.SetTexture("_ColorRamp_PerfMap", _PerfColorRamp);
