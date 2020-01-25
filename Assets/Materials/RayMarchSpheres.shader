@@ -34,6 +34,7 @@ Shader "Hidden/RayMarchSpheres"
 	uniform float _SphereRadius;
 	uniform float _GridSpacing;
 	uniform int _NSteps;
+	uniform float _MinDist;
 
 
 	// Output of vertex shader / input to fragment shader
@@ -69,47 +70,68 @@ Shader "Hidden/RayMarchSpheres"
 		return o;
 	}
 
+	float de_gridSpheres(float3 x)
+	{
+		//return length(frac(x/_GridSpacing)*_GridSpacing - _SpherePos) - _SphereRadius;
+		return length(frac(x / _GridSpacing)*_GridSpacing - _SpherePos) - _SphereRadius;
+	}
+
+#define DE(x) de_gridSpheres(x)
+//#define CALC_NORMAL(p,dx) calcNormal_Spheres(p,dx)
+#define CALC_NORMAL(p,dx) calcNormal(p,dx)
+
+	//A faster formula to find the gradient/normal direction of the DE(the w component is the average DE)
+//credit to http://www.iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
+	float3 calcNormal(float3 p, float dx) {
+		const float3 k = float3(1, -1, 0);
+		return normalize(k.xyy*DE(p + k.xyy*dx) +
+			k.yyx*DE(p + k.yyx*dx) +
+			k.yxy*DE(p + k.yxy*dx) +
+			k.xxx*DE(p + k.xxx*dx));
+	}
+
+	float3 calcNormal_Spheres(float3 p, float dx)
+	{
+		return normalize(frac(p / _GridSpacing) * _GridSpacing - _SpherePos);
+	}
+
 	fixed4 frag(v2f i) : SV_Target
 	{
-		float3 rc = _CameraInvViewMatrix._14_24_34;
-		float3 rayDir = i.ray / length(i.ray);
+		float4 rc;
+		rc.xyz = _CameraInvViewMatrix._14_24_34;
+		rc.w = 0.0;
+		//float3 rc= float3(0,0,0);
+		float4 rayDir;
+		rayDir.xyz = i.ray / length(i.ray);
+		rayDir.w = 1;
 
 		//fixed4 col;
 		//col.xyz = rayDir * 0.5 + 1;
 		//col.w = 1;
 		//return col;
 
+		fixed4 col;
 		int iStep;
+		col = fixed4(0, 0, 0, 1);
 		for (iStep = 1;iStep <= _NSteps;++iStep)
 		{
-			float3 CS = frac(rc - _SpherePos);
-			float b_2 = dot(rayDir, CS);
-			float c = dot(CS, CS) - _SphereRadius * _SphereRadius;
-			float bsqr_4 = b_2 * b_2;
-			float sSqr = bsqr_4 - c;
-
-			if (sSqr > 0)
+			float d = DE(rc.xyz)*1.01;
+			if (d < _MinDist)
 			{
-				float s = sqrt(sSqr);
-				float d = -s - b_2;
-				if (d < 0)
-				{
-					d = s - b_2;
-					if (d < 0)
-					{
-						return fixed4(1, 1, 0, 1);
-					}
-				}
-				return fixed4(d / _GridSpacing, (float)iStep/_NSteps, 1, 1);
+				float3 normal = CALC_NORMAL(rc, _MinDist);
+				//col = fixed4(1.0, 0, 0, 1);
+				col.xyz = normal * 0.5 + 0.5;
+				col.w = 1;
+				break;
 			}
-			else if ( sSqr == 0 )
-			{
-				/*float d = -dot(rayDir, rc - _SpherePos);*/
-				return fixed4(1, 0, 0, 1);
-			}
-			rc += rayDir * _GridSpacing;
+			rc += rayDir * d;
 		}
-		return fixed4(0, 0, 0, 1);
+		float mulFactor = 1 / rc.w;
+		if (mulFactor < 1)
+		{
+			col *= mulFactor;
+		}
+		return col;
 	}
 			
 			ENDCG

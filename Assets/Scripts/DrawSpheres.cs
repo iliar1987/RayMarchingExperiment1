@@ -25,6 +25,8 @@ public class DrawSpheres : SceneViewFilter
     private float _GridSpacing = 2.0f;
     [SerializeField]
     private int _NSteps = 10;
+    [SerializeField]
+    private float _MinDist = 0.01f;
 
     public Material EffectMaterial
     {
@@ -99,6 +101,7 @@ public class DrawSpheres : SceneViewFilter
         EffectMaterial.SetFloat("_SphereRadius", _SphereRadius);
         EffectMaterial.SetFloat("_GridSpacing", _GridSpacing);
         EffectMaterial.SetInt("_NSteps", _NSteps);
+        EffectMaterial.SetFloat("_MinDist", _MinDist);
 
 
         EffectMaterial.SetVector("_LightDir", SunLight ? SunLight.forward : Vector3.down);
