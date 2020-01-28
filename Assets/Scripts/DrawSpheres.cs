@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 [ExecuteInEditMode]
 [RequireComponent(typeof(Camera))]
@@ -18,15 +19,25 @@ public class DrawSpheres : SceneViewFilter
     [SerializeField]
     private bool _DebugPerformance = false;
     [SerializeField]
-    private Vector3 _SpherePos = new Vector3(1, 0, 0);
+    private Vector3 _SpherePos = new Vector3(0.5f, 0.5f, 0.5f);
     [SerializeField]
     private float _SphereRadius = 0.1f;
     [SerializeField]
-    private float _GridSpacing = 2.0f;
+    private float _GridSpacing = 1.0f;
     [SerializeField]
-    private int _NSteps = 10;
+    private int _NSteps = 1000;
     [SerializeField]
-    private float _MinDist = 0.01f;
+    private float _MinDist = 0.001f;
+    [SerializeField]
+    private float _StepMultiplier = 1.001f;
+    [SerializeField]
+    private float _Fogginess = 1.0f;
+    [SerializeField]
+    private float _WavePropagationSpeed = 1.0f;
+    [SerializeField]
+    private float _TurnPeriod = 1.0f;
+    [SerializeField]
+    private float _TurnCompletionTime = 0.3f;
 
     public Material EffectMaterial
     {
@@ -102,7 +113,11 @@ public class DrawSpheres : SceneViewFilter
         EffectMaterial.SetFloat("_GridSpacing", _GridSpacing);
         EffectMaterial.SetInt("_NSteps", _NSteps);
         EffectMaterial.SetFloat("_MinDist", _MinDist);
-
+        EffectMaterial.SetFloat("_Fogginess", _Fogginess);
+        EffectMaterial.SetFloat("_StepMultiplier", _StepMultiplier);
+        EffectMaterial.SetFloat("_WavePropagationSpeed", _WavePropagationSpeed);
+        EffectMaterial.SetFloat("_TurnPeriod", _TurnPeriod);
+        EffectMaterial.SetFloat("_TurnCompletionTime", _TurnCompletionTime);
 
         EffectMaterial.SetVector("_LightDir", SunLight ? SunLight.forward : Vector3.down);
 

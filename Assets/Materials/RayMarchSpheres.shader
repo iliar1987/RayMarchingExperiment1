@@ -35,6 +35,11 @@ Shader "Hidden/RayMarchSpheres"
 	uniform float _GridSpacing;
 	uniform int _NSteps;
 	uniform float _MinDist;
+	uniform float _Fogginess;
+	uniform float _StepMultiplier;
+	uniform float _WavePropagationSpeed;
+	uniform float _TurnPeriod;
+	uniform float _TurnCompletionTime;
 
 
 	// Output of vertex shader / input to fragment shader
@@ -95,8 +100,14 @@ Shader "Hidden/RayMarchSpheres"
 		return normalize(frac(p / _GridSpacing) * _GridSpacing - _SpherePos);
 	}
 
+	float3 RotateVec(float3 v, float3 axis, float theta)
+	{
+		return v * cos(theta) + cross(axis, v) * sin(theta) + axis * dot(axis, v) * (1 - cos(theta));
+	}
+
 	fixed4 frag(v2f i) : SV_Target
 	{
+		const float pi = 3.1415926f;
 		float4 rc;
 		rc.xyz = _CameraInvViewMatrix._14_24_34;
 		rc.w = 0.0;
@@ -115,18 +126,28 @@ Shader "Hidden/RayMarchSpheres"
 		col = fixed4(0, 0, 0, 1);
 		for (iStep = 1;iStep <= _NSteps;++iStep)
 		{
-			float d = DE(rc.xyz)*1.01;
+			float d = DE(rc.xyz)*_StepMultiplier;
 			if (d < _MinDist)
 			{
 				float3 normal = CALC_NORMAL(rc, _MinDist);
 				//col = fixed4(1.0, 0, 0, 1);
-				col.xyz = normal * 0.5 + 0.5;
+				float cellNum = floor(rc.x / _GridSpacing);
+				float t = _Time.y - cellNum * _GridSpacing / _WavePropagationSpeed;
+				float timeFromPeriodStart = fmod(t,_TurnPeriod);
+				float inAnimationTime = smoothstep(_TurnPeriod - _TurnCompletionTime,_TurnPeriod, timeFromPeriodStart);
+				int phase = (int)(t / _TurnPeriod) % 3;
+
+				float angle = (phase + inAnimationTime) * 2 * pi / 3;
+				float3 axis = float3(1, 1, 1);
+				axis /= length(axis);
+				col.xyz = RotateVec(normal,axis,angle) * 0.5 + 0.5;
 				col.w = 1;
 				break;
 			}
 			rc += rayDir * d;
 		}
-		float mulFactor = 1 / rc.w;
+		float mulFactor = _Fogginess / rc.w;
+		//col.g += rc.w / 10;
 		if (mulFactor < 1)
 		{
 			col *= mulFactor;
